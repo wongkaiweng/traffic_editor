@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.5)
-project(building_sim_ign)
+project(building_gazebo_plugins)
+
+find_package(Qt5 COMPONENTS Widgets REQUIRED)
+set(CMAKE_AUTOMOC ON)
 
 # Default to C99
 if(NOT CMAKE_C_STANDARD)
@@ -19,26 +22,10 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-
-find_package(ignition-cmake2 QUIET)
-if (NOT ignition-cmake2_FOUND)
-  message("ignition-cmake not found, skipping ignition gazebo plugins")
-  return()
-endif()
-ign_find_package(ignition-gazebo4 QUIET)
-if (NOT ignition-gazebo4_FOUND)
-  message("Wrong ignition-gazebo version found. Plugins require ignition-gazebo4 (dome)")
-#  return()
-endif()
-set(IGN_GAZEBO_VER 4)
-ign_find_package(ignition-plugin1 REQUIRED COMPONENTS register)
-set(IGN_PLUGIN_VER 1)
-ign_find_package(ignition-common3 REQUIRED)
-set(IGN_COMMON_VER 3)
-ign_find_package(ignition-math4 REQUIRED)
-ign_find_package(sdformat9 REQUIRED)
-set(IGN_MATH_VER 4)
-
+find_package(gazebo REQUIRED)
+find_package(gazebo_ros REQUIRED)
+find_package(gazebo_dev REQUIRED)
+find_package(gazebo_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
@@ -49,33 +36,51 @@ find_package(rmf_lift_msgs REQUIRED)
 find_package(building_map_msgs REQUIRED)
 find_package(building_sim_common REQUIRED)
 
+# TODO this is a dependency of building_sim_common, it shouldn't be needed
+find_package(Eigen3 REQUIRED)
+
 include(GNUInstallDirs)
 
 add_library(slotcar SHARED ${PROJECT_SOURCE_DIR}/src/slotcar.cpp)
 
 target_link_libraries(slotcar
   PUBLIC
-    ignition-gazebo${IGN_GAZEBO_VER}::ignition-gazebo${IGN_GAZEBO_VER}
-    ignition-plugin${IGN_PLUGIN_VER}::ignition-plugin${IGN_PLUGIN_VER}
+    # TODO remove eigen
+    Eigen3::Eigen
     ${building_sim_common_LIBRARIES}
     ${rmf_fleet_msgs_LIBRARIES}
     ${rclcpp_LIBRARIES}
+    ${GAZEBO_LIBRARIES}
+    ${gazebo_ros_LIBRARIES}
     ${geometry_msgs_LIBRARIES}
     ${tf2_ros_LIBRARIES}
+    ${building_map_msgs_LIBRARIES}
 )
 
 target_include_directories(slotcar
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-    ${building_sim_common_INCLUDE_DIRS}
     ${GAZEBO_INCLUDE_DIRS}
+    ${building_sim_common_INCLUDE_DIRS}
     ${geometry_msgs_INCLUDE_DIRS}
     ${std_msgs_INCLUDE_DIRS}
     ${rmf_fleet_msgs_INCLUDE_DIRS}
     ${building_map_msgs_INCLUDE_DIRS}
     ${tf2_ros_INCLUDE_DIRS}
+    ${building_map_msgs_INCLUDE_DIRS}
 )
+
+# These lines are taken out because of this issue: https://github.com/ament/ament_cmake/issues/158
+#ament_target_dependencies(slotcar
+#  building_sim_utils
+#  "rmf_fleet_msgs"
+#  "rclcpp"
+#  "gazebo_dev"
+#  "gazebo_ros"
+#  "geometry_msgs"
+#  "tf2_ros"
+#)
 
 ###############################
 # door stuff
@@ -83,24 +88,24 @@ target_include_directories(slotcar
 
 add_library(door SHARED src/door.cpp)
 
-target_include_directories(door
-  PUBLIC
-    ${GAZEBO_INCLUDE_DIRS}
-    ${building_sim_common_INCLUDE_DIRS}
-    ${geometry_msgs_INCLUDE_DIRS}
-    ${rmf_door_msgs_INCLUDE_DIRS}
-)
-
 target_link_libraries(door
   PUBLIC
-    ${rclcpp_LIBRARIES}
-    ignition-gazebo${IGN_GAZEBO_VER}::ignition-gazebo${IGN_GAZEBO_VER}
-    ignition-plugin${IGN_PLUGIN_VER}::ignition-plugin${IGN_PLUGIN_VER}
     ${building_sim_common_LIBRARIES}
-    ${rmf_door_msgs_LIBRARIES}
     ${rmf_fleet_msgs_LIBRARIES}
-    #${geometry_msgs_LIBRARIES}
-    #${tf2_ros_LIBRARIES}
+    ${rclcpp_LIBRARIES}
+    ${GAZEBO_LIBRARIES}
+    ${gazebo_ros_LIBRARIES}
+    ${rmf_door_msgs_LIBRARIES}
+)
+
+target_include_directories(door
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    ${GAZEBO_INCLUDE_DIRS}
+    ${building_sim_common_INCLUDE_DIRS}
+    ${rmf_fleet_msgs_INCLUDE_DIRS}
+    ${rmf_door_msgs_INCLUDE_DIRS}
 )
 
 ###############################
@@ -109,26 +114,44 @@ target_link_libraries(door
 
 add_library(lift SHARED src/lift.cpp)
 
+target_link_libraries(lift
+  PUBLIC
+    ${building_sim_common_LIBRARIES}
+    ${rmf_fleet_msgs_LIBRARIES}
+    ${rclcpp_LIBRARIES}
+    ${GAZEBO_LIBRARIES}
+    ${gazebo_ros_LIBRARIES}
+    ${rmf_door_msgs_LIBRARIES}
+    ${rmf_lift_msgs_LIBRARIES}
+)
+
 target_include_directories(lift
   PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     ${GAZEBO_INCLUDE_DIRS}
     ${building_sim_common_INCLUDE_DIRS}
-    ${geometry_msgs_INCLUDE_DIRS}
+    ${rmf_fleet_msgs_INCLUDE_DIRS}
     ${rmf_door_msgs_INCLUDE_DIRS}
     ${rmf_lift_msgs_INCLUDE_DIRS}
 )
 
-target_link_libraries(lift
+###############################
+# toggle floor stuff
+###############################
+
+add_library(toggle_floors SHARED src/toggle_floors.cpp)
+
+target_include_directories(toggle_floors
   PUBLIC
-    ${rclcpp_LIBRARIES}
-    ignition-gazebo${IGN_GAZEBO_VER}::ignition-gazebo${IGN_GAZEBO_VER}
-    ignition-plugin${IGN_PLUGIN_VER}::ignition-plugin${IGN_PLUGIN_VER}
-    ${building_sim_common_LIBRARIES}
-    ${rmf_door_msgs_LIBRARIES}
-    ${rmf_lift_msgs_LIBRARIES}
-    ${rmf_fleet_msgs_LIBRARIES}
-    #${geometry_msgs_LIBRARIES}
-    #${tf2_ros_LIBRARIES}
+    ${GAZEBO_INCLUDE_DIRS}
+    #${building_sim_common_INCLUDE_DIRS}
+    ${Qt5Core_INCLUDE_DIRS}
+)
+
+target_link_libraries(toggle_floors
+  PUBLIC
+    Qt5::Widgets
 )
 
 ###############################
@@ -136,7 +159,7 @@ target_link_libraries(lift
 ###############################
 
 install(
-  TARGETS slotcar door lift
+  TARGETS slotcar door lift toggle_floors
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
