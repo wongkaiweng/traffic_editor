@@ -110,9 +110,8 @@ void Edge::create_required_parameters()
     auto it = params.find("distance");
     if (it == params.end() || it->second.type != Param::DOUBLE)
       params["distance"] = Param(1.0);
-  }
-  else if (type == LANE) {
-    create_param_if_needed("bidirectional", Param::BOOL, false);
+  } else if (type == LANE) {
+    create_param_if_needed("bidirectional", Param::BOOL, true);
     create_param_if_needed("orientation", Param::STRING, std::string());
     create_param_if_needed("graph_idx", Param::INT, 0);
     create_param_if_needed("demo_mock_floor_name", Param::STRING, std::string());
